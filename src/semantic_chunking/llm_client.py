@@ -30,7 +30,7 @@ def call_llm(prompt: str, system_prompt: str) -> Optional[str]:
         message = CLIENT.messages.create(
             model=LLM_MODEL,
             system=system_prompt,
-            max_tokens=10000, # Sonnet 4 can go up to 64k tokens
+            max_tokens=4096, # Sonnet 4 can go up to 64k tokens, Haiku 3 up to 4096
             messages=[{"role": "user", "content": prompt}]
         )
         response_text = message.content[0].text
