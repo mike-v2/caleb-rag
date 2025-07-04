@@ -1,0 +1,14 @@
+# Environments
+.env
+.env*.local
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Jupyter Notebook
+.ipynb_checkpoints 
+
+# Data
+data/

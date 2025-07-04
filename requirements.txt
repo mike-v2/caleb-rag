@@ -1,0 +1,6 @@
+python-dotenv
+numpy
+langchain
+tiktoken
+pinecone
+tqdm 
