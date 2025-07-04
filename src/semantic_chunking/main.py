@@ -1,6 +1,7 @@
 import os
 import json
 import logging
+import sys
 
 from .config import (
     INPUT_JSON_PATH, OUTPUT_JSON_PATH,
@@ -9,12 +10,15 @@ from .config import (
 from .chunking import process_video
 
 def setup_logging():
-    """Configures the logging for the application."""
+    """Configures logging to write to both a file and the console."""
     os.makedirs(LOGS_DIR, exist_ok=True)
     logging.basicConfig(
-        filename=LOG_FILE_PATH,
         level=getattr(logging, LOG_LEVEL.upper(), logging.INFO),
-        format=LOG_FORMAT
+        format=LOG_FORMAT,
+        handlers=[
+            logging.FileHandler(LOG_FILE_PATH),
+            logging.StreamHandler(sys.stdout)
+        ]
     )
 
 def main():

@@ -13,3 +13,6 @@ venv/
 
 # Data
 data/
+
+# Logs
+logs/

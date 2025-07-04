@@ -138,13 +138,18 @@ def process_video(video_data: Dict) -> Tuple[List[Dict], List[Dict]]:
         full_transcript_text += text_segment
 
     logging.info(f"--- Processing Video ID: {video_id} ---")
+    logging.info(f"[{video_id}] Transcript concatenated ({len(full_transcript_text)} chars). Identifying sections...")
     sections = identify_sections(full_transcript_text, video_id)
+    monologue_text = sections.get("monologue", "")
+    qa_text = sections.get("q_a", "")
+    logging.info(f"[{video_id}] Sections identified. Monologue: {len(monologue_text)} chars, Q&A: {len(qa_text)} chars.")
 
     # 2. Process Monologue
     monologue_chunks = []
-    monologue_text = sections.get("monologue")
     if monologue_text:
+        logging.info(f"[{video_id}] Chunking monologue...")
         raw_chunks = _recursive_chunk_internal(monologue_text, video_id, "monologue")
+        logging.info(f"[{video_id}] Monologue chunked. Mapping start times...")
         for chunk in raw_chunks:
             start_time = _find_chunk_start_time(chunk['text'], full_transcript_text, time_map)
             chunk['start_time'] = start_time
@@ -153,9 +158,10 @@ def process_video(video_data: Dict) -> Tuple[List[Dict], List[Dict]]:
 
     # 3. Process Q&A
     qa_chunks = []
-    qa_text = sections.get("q_a")
     if qa_text:
+        logging.info(f"[{video_id}] Chunking Q&A section...")
         raw_chunks = process_qa_section(qa_text, video_id)
+        logging.info(f"[{video_id}] Q&A section chunked. Mapping start times...")
         for chunk in raw_chunks:
             start_time = _find_chunk_start_time(chunk['text'], full_transcript_text, time_map)
             chunk['start_time'] = start_time

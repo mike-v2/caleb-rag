@@ -24,6 +24,9 @@ def call_llm(prompt: str, system_prompt: str) -> Optional[str]:
         return None
         
     try:
+        # Add a log message before every single API call
+        logging.info(f"Making LLM call. System prompt: '{system_prompt[:50]}...'. User prompt length: {len(prompt)} chars.")
+        
         message = CLIENT.messages.create(
             model=LLM_MODEL,
             system=system_prompt,
@@ -55,7 +58,7 @@ def extract_json_from_llm_response(response: str) -> Optional[Dict]:
             json_str = response[json_start:json_end + 1]
             return json.loads(json_str)
         
-        logging.warning("Could not find a valid JSON object in the LLM response.")
+        logging.warning(f"Could not find a valid JSON object in the LLM response. Response start: '{response[:200]}...' Response end: '...{response[-200:]}'")
         return None
     except json.JSONDecodeError as e:
         logging.error(f"Failed to decode JSON from response: {e}\nResponse snippet:\n{response[:500]}")
