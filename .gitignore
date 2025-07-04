@@ -1,4 +1,4 @@
-# Environments
+# Environment
 .env
 .env*.local
 
@@ -6,6 +6,7 @@
 __pycache__/
 *.py[cod]
 *$py.class
+venv/
 
 # Jupyter Notebook
 .ipynb_checkpoints 

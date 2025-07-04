@@ -3,4 +3,5 @@ numpy
 langchain
 tiktoken
 pinecone
-tqdm 
+tqdm
+youtube-transcript-api
