@@ -5,3 +5,4 @@ tiktoken
 pinecone
 tqdm
 youtube-transcript-api
+anthropic
