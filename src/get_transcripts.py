@@ -1,6 +1,7 @@
 import json
+import random
+import time
 from youtube_transcript_api import YouTubeTranscriptApi
-from youtube_transcript_api.formatters import JSONFormatter, TextFormatter
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -17,33 +18,6 @@ def save_json_file(data, file_path):
     """Save data to a JSON file."""
     with open(file_path, 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, indent=4)
-
-def add_transcripts_to_video_data(video_data):
-    """Fetch and add transcripts to video data."""
-    json_formatter = JSONFormatter()
-    text_formatter = TextFormatter()
-    
-    videos_with_transcripts = []
-
-    for i, video in enumerate(video_data):
-        video_id = video['video_id']
-        try:
-            print(f"({i+1}/{len(video_data)}) Getting transcripts for video: {video_id} (Live #{video.get('live_number', 'N/A')})")
-            
-            transcript = YouTubeTranscriptApi.get_transcript(video_id)
-            
-            json_formatted = json_formatter.format_transcript(transcript)
-            video['transcript_json'] = json.loads(json_formatted)
-            
-            text = text_formatter.format_transcript(transcript).replace('\n', ' ')
-            video['transcript_text'] = text
-            
-            videos_with_transcripts.append(video)
-        except Exception as e:
-            print(f"Failed to get transcript for video {video_id}: {str(e)}")
-            # We don't add the video if transcript fetching fails
-        
-    return videos_with_transcripts
 
 def main():
     """Main function to get missing transcripts."""
@@ -70,20 +44,43 @@ def main():
 
     print(f"Found {len(videos_to_process)} videos that need transcripts.")
 
-    new_videos_with_transcripts = add_transcripts_to_video_data(videos_to_process)
+    successful_fetches = 0
+    total_to_process = len(videos_to_process)
 
-    if new_videos_with_transcripts:
-        print(f"Successfully fetched transcripts for {len(new_videos_with_transcripts)} videos.")
-        
-        # Combine and save
-        combined_data = videos_with_transcripts + new_videos_with_transcripts
-        combined_data.sort(key=lambda x: x.get('live_number', 0), reverse=True)
-        save_json_file(combined_data, transcripts_path)
-        
-        print(f"Updated data with transcripts written to {transcripts_path}")
-        print(f"Total videos with transcripts: {len(combined_data)}")
+    for i, video in enumerate(videos_to_process):
+        delay = random.uniform(30, 60)
+        print(f"Waiting for {delay:.2f} seconds before next request...")
+        time.sleep(delay)
+
+        video_id = video['video_id']
+        try:
+            print(f"({i+1}/{total_to_process}) Getting transcripts for video: {video_id} (Live #{video.get('live_number', 'N/A')})")
+            
+            transcript = YouTubeTranscriptApi.get_transcript(video_id)
+            
+            video['transcript_json'] = transcript
+            text = ' '.join([item.get('text', '') for item in transcript])
+            video['transcript_text'] = text
+
+            videos_with_transcripts.append(video)
+            successful_fetches += 1
+            
+            # Sort and save after each successful fetch
+            videos_with_transcripts.sort(key=lambda x: x.get('live_number', 0), reverse=True)
+            save_json_file(videos_with_transcripts, transcripts_path)
+            
+            print(f"Successfully fetched and saved transcript for video {video_id}.")
+            print(f"Total videos with transcripts: {len(videos_with_transcripts)}")
+
+        except Exception as e:
+            print(f"Failed to get transcript for video {video_id}: {str(e)}")
+
+    if successful_fetches > 0:
+        print(f"\nFinished processing. Successfully fetched transcripts for {successful_fetches} new videos.")
+        print(f"Updated data with transcripts is in {transcripts_path}")
+        print(f"Total videos with transcripts: {len(videos_with_transcripts)}")
     else:
-        print("No new transcripts were fetched.")
+        print("\nFinished processing. No new transcripts were fetched.")
 
 if __name__ == '__main__':
     main() 
