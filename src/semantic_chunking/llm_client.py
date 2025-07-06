@@ -30,7 +30,7 @@ def call_llm(prompt: str, system_prompt: str) -> Optional[str]:
         message = CLIENT.messages.create(
             model=LLM_MODEL,
             system=system_prompt,
-            max_tokens=4096, # Sonnet 4 can go up to 64k tokens, Haiku 3 up to 4096
+            max_tokens=8192, # Sonnet 4 can go up to 64k tokens, Haiku 3 up to 4096, Haiku 3.5 up to 8192
             messages=[{"role": "user", "content": prompt}]
         )
         response_text = message.content[0].text
@@ -44,22 +44,29 @@ def call_llm(prompt: str, system_prompt: str) -> Optional[str]:
 
 def extract_json_from_llm_response(response: str) -> Optional[Dict]:
     """
-    Extracts a JSON object from the LLM's response string.
+    Extracts a JSON object from the LLM's response string,
+    handling markdown and other common formatting issues.
     """
     if not response:
         return None
         
     try:
-        # Find the first '{' and the last '}' to extract the JSON object
-        json_start = response.find("{")
-        json_end = response.rfind("}")
+        # Handle JSON enclosed in markdown ```json ... ```
+        match = re.search(r"```json\s*(\{.*?\})\s*```", response, re.DOTALL)
+        if match:
+            json_str = match.group(1)
+        else:
+            # Fallback to finding the first '{' and the last '}'
+            json_start = response.find("{")
+            json_end = response.rfind("}")
+            if json_start != -1 and json_end != -1 and json_end > json_start:
+                json_str = response[json_start:json_end + 1]
+            else:
+                logging.warning(f"Could not find a JSON object in the LLM response. Response start: '{response[:200]}...'")
+                return None
         
-        if json_start != -1 and json_end != -1 and json_end > json_start:
-            json_str = response[json_start:json_end + 1]
-            return json.loads(json_str)
-        
-        logging.warning(f"Could not find a valid JSON object in the LLM response. Response start: '{response[:200]}...' Response end: '...{response[-200:]}'")
-        return None
+        return json.loads(json_str)
+
     except json.JSONDecodeError as e:
         logging.error(f"Failed to decode JSON from response: {e}\nResponse snippet:\n{response[:500]}")
     except Exception as e:

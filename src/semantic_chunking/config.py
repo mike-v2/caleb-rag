@@ -10,7 +10,7 @@ try:
 except KeyError:
     raise ValueError("ANTHROPIC_API_KEY not found in .env file. Please add it.")
 
-LLM_MODEL = "claude-3-haiku-20240307" # "claude-sonnet-4-0"
+LLM_MODEL = "claude-3-5-haiku-latest" #"claude-3-haiku-20240307" # "claude-sonnet-4-0"
 
 # --- Tokenizer Configuration ---
 ENCODING_NAME = "cl100k_base"
