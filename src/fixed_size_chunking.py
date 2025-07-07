@@ -126,9 +126,9 @@ def get_pinecone_index(index_name):
 
 def upsert_to_pinecone(index, chunks, embeddings):
     def prepare_data(chunks, embeddings):
-        for i, (chunk, embedding) in enumerate(zip(chunks, embeddings)):
+        for (chunk, embedding) in zip(chunks, embeddings):
             yield (
-                str(i),
+                f'{chunk.metadata["video_id"]}-{chunk.metadata["chunk_index"]}',
                 embedding.tolist() if isinstance(embedding, np.ndarray) else embedding,
                 {
                     "text": chunk.page_content,
@@ -150,30 +150,32 @@ def upsert_to_pinecone(index, chunks, embeddings):
 # --- Main ---
 
 def main():
-    parser = argparse.ArgumentParser(description="Chunk transcripts, create embeddings, and upsert to Pinecone.")
-    parser.add_argument("--chunk_size", type=int, default=1000, help="The size of each text chunk.")
-    parser.add_argument("--chunk_overlap", type=int, default=200, help="The overlap between consecutive chunks.")
-    args = parser.parse_args()
+    chunk_size = 1000
+    chunk_overlap = 200
 
     # --- Setup ---
-    base_folder = '../data/fixed_size_chunks'
-    folder_path = os.path.join(base_folder, f'size-{args.chunk_size}-ol-{args.chunk_overlap}')
+    folder_path = f'data/size-{chunk_size}-ol-{chunk_overlap}'
     if not os.path.exists(folder_path):
         os.makedirs(folder_path)
 
     chunks_file = os.path.join(folder_path, 'chunks.json')
     embeddings_file = os.path.join(folder_path, 'embeddings.npy')
-    input_file = '../data/video-data-with-transcripts.json'
+    input_file = 'data/video-data-with-transcripts.json'
     
     # --- Process ---
+    live_start_number = 750
     documents = load_documents(input_file)
-    chunks = split_documents_into_chunks(documents, args.chunk_size, args.chunk_overlap)
+    original_doc_count = len(documents)
+    documents = [doc for doc in documents if doc.metadata.get('live_number') and doc.metadata.get('live_number') >= live_start_number]
+    print(f"Filtered documents from {original_doc_count} to {len(documents)} (live_number >= {live_start_number}).")
+
+    chunks = split_documents_into_chunks(documents, chunk_size, chunk_overlap)
     store_chunks_locally(chunks, chunks_file)
     
     embeddings = create_embeddings(chunks)
     store_embeddings_locally(embeddings, embeddings_file)
     
-    index_name = f"caleb-rag-fixed-{args.chunk_size}-{args.chunk_overlap}"
+    index_name = f"openai-1000"
     index = get_pinecone_index(index_name)
     upsert_to_pinecone(index, chunks, embeddings)
 
