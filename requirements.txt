@@ -1,8 +1,11 @@
 python-dotenv
 numpy
 langchain
+langchain-community
 tiktoken
 pinecone
 tqdm
 youtube-transcript-api
 anthropic
+openai
+jq
