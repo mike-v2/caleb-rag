@@ -7,7 +7,6 @@ from langchain_text_splitters import TokenTextSplitter
 from langchain_community.document_loaders import JSONLoader
 import tiktoken
 from openai import OpenAI
-from pinecone import Pinecone, ServerlessSpec
 from tqdm.auto import tqdm
 from dotenv import load_dotenv
 
@@ -188,54 +187,6 @@ def store_embeddings_locally(embeddings, embeddings_file):
     logging.debug(f"Storing embeddings locally to {embeddings_file}")
     np.save(embeddings_file, embeddings)
     logging.debug(f"Successfully stored embeddings in {embeddings_file}")
-
-# --- Pinecone ---
-
-def get_pinecone_index(index_name):
-    pc = Pinecone(api_key=os.environ.get("PINECONE_API_KEY"))
-    if index_name not in pc.list_indexes().names():
-        logging.info(f'Creating index: {index_name}')
-        pc.create_index(
-            name=index_name, 
-            dimension=1536, 
-            metric='cosine',
-            spec=ServerlessSpec(cloud='aws', region='us-east-1')
-        )
-        logging.debug(f"Waiting for index '{index_name}' to be ready...")
-        while not pc.describe_index(index_name).status['ready']:
-            time.sleep(1)
-        logging.debug(f"Index '{index_name}' is ready.")
-    else:
-        logging.debug(f"Using existing Pinecone index: {index_name}")
-    return pc.Index(index_name)
-
-def upsert_to_pinecone(index, chunks, embeddings):
-    def prepare_data(chunks, embeddings):
-        for (chunk, embedding) in zip(chunks, embeddings):
-            start_time = chunk.metadata.get("start_time")
-            
-            yield (
-                f'{chunk.metadata["video_id"]}-{chunk.metadata["chunk_index"]}',
-                embedding.tolist() if isinstance(embedding, np.ndarray) else embedding,
-                {
-                    "text": chunk.page_content,
-                    "video_id": chunk.metadata.get("video_id"),
-                    "live_number": chunk.metadata.get("live_number"),
-                    "published_at": chunk.metadata.get("published_at"),
-                    "title": chunk.metadata.get("title"),
-                    "start_time": start_time,
-                    "chunk_index": chunk.metadata.get("chunk_index")
-                }
-            )
-
-    batch_size = 96
-    logging.debug(f"Upserting {len(chunks)} vectors to Pinecone index '{index}'...")
-    for i in tqdm(range(0, len(chunks), batch_size), desc="Uploading batches", leave=False):
-        batch_data = list(prepare_data(chunks[i:i+batch_size], embeddings[i:i+batch_size]))
-        index.upsert(vectors=batch_data)
-    
-    index_stats = index.describe_index_stats()
-    logging.debug(f"Upsert complete. Index stats: {index_stats}")
 
 # --- Comprehensive Test Functions ---
 def test_data_integrity(chunks, video_id):
@@ -492,11 +443,6 @@ def main():
         return
     print("✓ All tests passed!")
 
-    index_name = f"openai-1000"
-    print(f"🔗 Connecting to Pinecone index: {index_name}")
-    logging.info(f"Using Pinecone index: {index_name}")
-    index = get_pinecone_index(index_name)
-
     print(f"🚀 Processing {len(documents_to_process)} documents...")
     for i, doc in enumerate(tqdm(documents_to_process, desc="Processing documents"), 1):
         video_id = doc.metadata.get("video_id")
@@ -525,10 +471,14 @@ def main():
         print(f"    🔮 Creating embeddings...")
         embeddings = create_embeddings(chunks)
         
-        print(f"    ⬆️  Uploading to Pinecone...")
-        upsert_to_pinecone(index, chunks, embeddings)
+        print(f"    💾 Storing chunks and embeddings locally...")
+        chunks_file = os.path.join(folder_path, 'chunks.json')
+        embeddings_file = os.path.join(folder_path, 'embeddings.npy')
+        store_chunks_locally(chunks, chunks_file)
+        store_embeddings_locally(embeddings, embeddings_file)
+        
         print(f"    ✅ Completed video {video_id}")
-        logging.info(f"Successfully processed and upserted {len(chunks)} chunks for video_id: {video_id}")
+        logging.info(f"Successfully processed and stored {len(chunks)} chunks for video_id: {video_id}")
 
     print("🎉 Processing complete!")
     logging.info("Processing complete.")
